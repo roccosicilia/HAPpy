@@ -1,13 +1,11 @@
 # Ignora tutti i file .log in qualsiasi directory
 *.log
 
-# Ignora qualsiasi directory chiamata .logs
+# Ignora directory
 logs/
 **/logs/
 .logs/
 **/.logs/
-
-# Ignora file di sistema
 .vscode/
 
 # Ignora la directory payloads_oper (ovunque si trovi)
