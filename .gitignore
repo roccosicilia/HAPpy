@@ -7,6 +7,9 @@ logs/
 .logs/
 **/.logs/
 
+# Ignora file di sistema
+.vscode/
+
 # Ignora la directory payloads_oper (ovunque si trovi)
 payloads_oper/
 **/payloads_oper/
