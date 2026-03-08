@@ -1,0 +1,12 @@
+# Ignora tutti i file .log in qualsiasi directory
+*.log
+
+# Ignora qualsiasi directory chiamata .logs
+logs/
+**/logs/
+.logs/
+**/.logs/
+
+# Ignora la directory payloads_oper (ovunque si trovi)
+payloads_oper/
+**/payloads_oper/
