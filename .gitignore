@@ -7,6 +7,13 @@ logs/
 .logs/
 **/.logs/
 .vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+!*.code-workspace
 
 # Ignora la directory payloads_oper (ovunque si trovi)
 payloads_oper/
