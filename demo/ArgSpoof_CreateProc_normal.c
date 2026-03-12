@@ -1,185 +1,90 @@
-/*
- *
- * Programma di test BASELINE - creazione processo normale
- * ========================================================
- *
- * SCOPO
- * =====
- * Questo programma crea un processo PowerShell che esegue
- * il comando "whoami" usando il path normale attraverso
- * le API Win32 standard.
- *
- * Serve come baseline per confrontare la telemetria generata
- * rispetto alla versione con argument spoofing.
- *
- * COSA VEDE LA CALLBACK DELL'EDR
- * ================================
- * Quando questo programma viene eseguito, la callback
- * PsSetCreateProcessNotifyRoutineEx dell'EDR riceve:
- *
- *   ImageFileName: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
- *   CommandLine:   powershell.exe -NoProfile -Command whoami
- *   ParentProcessId: PID di questo programma
- *
- * La command line corrisponde esattamente a quello che
- * il processo eseguirà — nessuna discrepanza.
- *
- * FLUSSO DI ESECUZIONE
- * =====================
- *
- *   test_normal_process.exe
- *       ↓
- *   CreateProcess("powershell.exe -NoProfile -Command whoami")
- *       ↓
- *   kernel crea il processo
- *       ↓
- *   kernel chiama callback EDR
- *       CommandLine loggata: "powershell.exe -NoProfile -Command whoami"
- *       ↓
- *   processo PowerShell esegue
- *       legge PEB → trova "powershell.exe -NoProfile -Command whoami"
- *       esegue whoami
- *       ↓
- *   output: nome utente corrente
- *
- * COSA CERCARE IN ELASTIC/KIBANA
- * ================================
- * Dopo l'esecuzione cerca:
- *
- *   process.name: "powershell.exe" AND process.args: "whoami"
- *
- * Dovresti vedere l'evento con la command line completa
- * e il processo padre correttamente identificato.
- */
-
-#include <windows.h>
-#include <stdio.h>
+#include <windows.h>  // API Win32 (CreatePipe, CreateProcess, ecc.)
+#include <stdio.h>    // printf, I/O standard
 
 int main() {
 
-    printf("=================================================\n");
-    printf(" Test Baseline - Creazione Processo Normale\n");
-    printf(" powershell.exe -NoProfile -Command whoami\n");
-    printf("=================================================\n\n");
+    // Handle per i due capi della pipe: lettura e scrittura
+    HANDLE readPipe, writePipe;
 
-    /*
-     * STRUTTURE PER CreateProcess
-     * ============================
-     * STARTUPINFOA descrive come deve apparire la finestra
-     * del processo figlio e dove va il suo I/O.
-     *
-     * PROCESS_INFORMATION riceve gli handle e i PID del
-     * processo e del thread principale appena creati.
-     * Questi handle devono essere chiusi dopo l'uso.
-     */
-    STARTUPINFOA si = {0};
-    PROCESS_INFORMATION pi = {0};
-    si.cb = sizeof(si);
+    // Attributi di sicurezza: dimensione struttura, no descriptor esplicito,
+    // TRUE = gli handle sono ereditabili dai processi figli
+    SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
 
-    /*
-     * COMMAND LINE DEL PROCESSO FIGLIO
-     * ==================================
-     * Questa è la command line REALE che:
-     * 1. Viene passata al kernel durante la creazione
-     * 2. Viene letta dalla callback dell'EDR
-     * 3. Viene scritta nel PEB del processo figlio
-     * 4. Viene letta ed eseguita da PowerShell
-     *
-     * Tutti e quattro i passaggi usano la stessa stringa —
-     * questo è il comportamento normale e atteso.
-     *
-     * -NoProfile evita di caricare il profilo PowerShell
-     * per velocizzare l'esecuzione nel test.
-     * -Command specifica il comando da eseguire direttamente.
-     */
-    char cmdLine[] = "powershell.exe -NoProfile -Command whoami";
-
-    printf("[*] Creazione processo con command line:\n");
-    printf("    %s\n\n", cmdLine);
-
-    /*
-     * CREAZIONE DEL PROCESSO
-     * =======================
-     * CreateProcessA crea il processo figlio.
-     *
-     * Parametri rilevanti:
-     *   lpApplicationName = NULL
-     *     Il path dell'eseguibile viene estratto dal primo
-     *     token della command line. Windows cerca powershell.exe
-     *     nel PATH di sistema.
-     *
-     *   lpCommandLine = cmdLine
-     *     La command line completa inclusi gli argomenti.
-     *     Questa stringa viene copiata nel PEB del processo figlio
-     *     e letta dalla callback dell'EDR.
-     *
-     *   dwCreationFlags = 0
-     *     Nessun flag speciale — processo creato normalmente
-     *     e avviato immediatamente senza sospensione.
-     *     Confronta con CREATE_SUSPENDED usato nello spoofing.
-     */
-    BOOL result = CreateProcessA(
-        NULL,       // path estratto dalla command line
-        cmdLine,    // command line reale
-        NULL,       // security attributes processo default
-        NULL,       // security attributes thread default
-        FALSE,      // non ereditare handle del padre
-        0,          // nessun flag speciale - avvio immediato
-        NULL,       // eredita environment variables
-        NULL,       // eredita working directory
-        &si,        // struttura startup info
-        &pi         // riceve handle e PID del nuovo processo
-    );
-
-    if (!result) {
-        printf("[ERRORE] CreateProcess fallita: %d\n", GetLastError());
+    // Crea una pipe anonima bidirezionale (unidirezionale in pratica:
+    // si scrive su writePipe, si legge da readPipe)
+    if (!CreatePipe(&readPipe, &writePipe, &sa, 0)) {
+        printf("CreatePipe failed: %lu\n", GetLastError());
         return 1;
     }
 
-    printf("[OK] Processo creato\n");
-    printf("[INFO] PID processo figlio: %lu\n", pi.dwProcessId);
-    printf("[INFO] PID processo padre (questo): %lu\n\n", GetCurrentProcessId());
+    // Rimuove il flag di ereditabilità da readPipe:
+    // il processo figlio NON deve ereditare il capo di lettura,
+    // altrimenti la pipe non si chiuderebbe mai correttamente
+    SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
 
-    printf("[*] Cosa ha visto la callback dell'EDR:\n");
-    printf("    ImageFileName: powershell.exe\n");
-    printf("    CommandLine:   %s\n", cmdLine);
-    printf("    ParentPID:     %lu\n\n", GetCurrentProcessId());
+    // Struttura che descrive la finestra/console del processo figlio
+    STARTUPINFOA si = {0};
 
-    printf("[*] Output di whoami:\n");
-    printf("--------------------\n");
+    // Struttura che riceverà i handle e gli ID del processo/thread figlio
+    PROCESS_INFORMATION pi = {0};
 
-    /*
-     * ATTESA COMPLETAMENTO PROCESSO FIGLIO
-     * ======================================
-     * WaitForSingleObject aspetta che il processo figlio
-     * termini prima di continuare. Il timeout INFINITE
-     * significa attesa senza limite di tempo.
-     *
-     * In un programma reale si userebbe un timeout finito
-     * per evitare blocchi indefiniti.
-     */
+    si.cb = sizeof(si);  // Dimensione obbligatoria della struttura
+
+    // Indica che vogliamo ridefinire stdin/stdout/stderr del figlio
+    si.dwFlags = STARTF_USESTDHANDLES;
+
+    // Reindirizza stdout del figlio verso la pipe (capo di scrittura)
+    si.hStdOutput = writePipe;
+
+    // Reindirizza anche stderr sulla stessa pipe (cattura errori + output)
+    si.hStdError  = writePipe;
+
+    // Il figlio eredita lo stdin del processo corrente (la tastiera)
+    si.hStdInput  = GetStdHandle(STD_INPUT_HANDLE);
+
+    // Comando da eseguire: PowerShell senza profilo utente, esegue "whoami"
+    char cmd[] = "powershell.exe -NoProfile -Command whoami";
+
+    if (!CreateProcessA(
+        NULL,       // Nome eseguibile (NULL = ricavato da cmd)
+        cmd,        // Riga di comando completa
+        NULL,       // Attributi di sicurezza del processo (default)
+        NULL,       // Attributi di sicurezza del thread (default)
+        TRUE,       // Eredita gli handle aperti (necessario per la pipe)
+        CREATE_NO_WINDOW,  // Non aprire nessuna finestra/console visibile
+        NULL,       // Variabili d'ambiente (NULL = eredita dal padre)
+        NULL,       // Directory di lavoro (NULL = stessa del padre)
+        &si,        // STARTUPINFO con i reindirizzamenti configurati sopra
+        &pi))       // Riceve handle e ID del nuovo processo
+    {
+        printf("CreateProcess failed: %lu\n", GetLastError());
+        return 1;
+    }
+
+    // Chiude il capo di scrittura nel processo padre:
+    // ora solo il figlio scrive sulla pipe; quando il figlio termina
+    // e chiude il suo writePipe, ReadFile nel padre riceverà EOF
+    CloseHandle(writePipe);
+
+    char buffer[4096];  // Buffer temporaneo per i dati letti
+    DWORD bytesRead;    // Numero di byte effettivamente letti
+
+    printf("Output:\n\n");
+
+    // Legge in loop dall'output del processo figlio finché
+    // non arriva EOF (figlio terminato + writePipe chiuso) o errore
+    while (ReadFile(readPipe, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
+        buffer[bytesRead] = 0;  // Terminatore stringa per printf sicuro
+        printf("%s", buffer);
+    }
+
+    // Attende che il processo figlio finisca prima di proseguire
     WaitForSingleObject(pi.hProcess, INFINITE);
 
-    printf("--------------------\n\n");
-
-    /*
-     * CLEANUP DEGLI HANDLE
-     * =====================
-     * Gli handle al processo e al thread principale
-     * devono essere chiusi esplicitamente per evitare
-     * resource leak. Windows non li chiude automaticamente
-     * alla terminazione del processo padre.
-     */
+    // Pulizia: chiude tutti gli handle aperti per evitare resource leak
+    CloseHandle(readPipe);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
-    printf("[OK] Processo terminato normalmente\n\n");
-    printf("[VERIFICA IN KIBANA]\n");
-    printf("  Cerca: process.name: \"powershell.exe\"\n");
-    printf("  Dovresti vedere la command line completa\n");
-    printf("  con whoami come argomento\n\n");
-
-    printf("Premi invio per terminare...\n");
-    getchar();
     return 0;
 }
