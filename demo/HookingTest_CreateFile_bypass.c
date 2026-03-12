@@ -51,6 +51,7 @@
 
 #include <stdio.h>
 #include <windows.h>
+#include <wchar.h>
 
 /*
  * STRUTTURE NECESSARIE PER NtCreateFile
@@ -491,6 +492,7 @@ int main() {
 
     printf("[*] Chiamata NtCreateFile tramite versione pulita da disco...\n");
     printf("[*] L'hook di Bitdefender NON verra' attraversato\n\n");
+    getchat(); // pausa per consentire il debug
 
     LONG status = CleanNtCreateFile(
         &hFile,                         // riceve l'handle al file
