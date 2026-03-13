@@ -1,3 +1,6 @@
+
+// test - verifica presenza di hoocking per CreateFile
+
 #include <windows.h>
 #include <stdio.h>
 
