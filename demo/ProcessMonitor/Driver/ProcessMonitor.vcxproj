@@ -10,13 +10,12 @@
 
   <PropertyGroup Label="Globals">
     <ProjectGuid>{11111111-1111-1111-1111-111111111111}</ProjectGuid>
-    <!-- Dice a MSBuild di usare il toolset WDK per driver kernel -->
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <RootNamespace>ProcessMonitor</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
 
-  <!-- Importa le regole base WDK per driver kernel -->
-  <Import Project="$(WDKContentRoot)build\WindowsDriver.props"/>
+  <!-- Path completo con versione WDK installata -->
+  <Import Project="C:\Program Files (x86)\Windows Kits\10\build\10.0.26100.0\WindowsDriver.Default.props"/>
 
   <PropertyGroup>
     <ConfigurationType>Driver</ConfigurationType>
@@ -28,13 +27,13 @@
     <ClCompile Include="driver.c"/>
   </ItemGroup>
 
-  <!-- Flag /integritycheck obbligatorio per PsSetCreateProcessNotifyRoutineEx -->
   <ItemDefinitionGroup>
     <Link>
       <AdditionalOptions>/integritycheck %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
 
-  <Import Project="$(WDKContentRoot)build\WindowsDriver.targets"/>
+  <!-- Path completo con versione WDK installata -->
+  <Import Project="C:\Program Files (x86)\Windows Kits\10\build\10.0.26100.0\WindowsDriver.Common.targets"/>
 
 </Project>
