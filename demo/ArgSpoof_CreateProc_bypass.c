@@ -129,7 +129,9 @@ int main() {
         STEP 2 — CREA PIPE ANONIMA PER CATTURARE L'OUTPUT
         ============================================================
         Viene creata una pipe anonima per reindirizzare stdout e
-        stderr del processo figlio verso il processo padre.
+        stderr del processo figlio verso il processo padre. Questa
+        componente ci è utile solo ai fini della demo e non è
+        necessario in contesti operativi.
         - hReadPipe:  estremo di lettura (usato dal padre)
         - hWritePipe: estremo di scrittura (ereditato dal figlio)
 
