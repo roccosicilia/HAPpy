@@ -238,18 +238,42 @@ VOID ProcessCallback(
         if (CreateInfo->ImageFileName != NULL)
         {
             /*
-             * Usiamo .Buffer per estrarre il puntatore wchar_t*
-             * dalla struttura UNICODE_STRING e passarlo a
-             * _snwprintf_s con il formato %ls (stringa wide).
-             */
-            _snwprintf_s(
-                logMessage,
-                MAX_MESSAGE_LEN,
-                _TRUNCATE,
-                L"[CREATO]    PID=%llu  PPID=%llu  Path=%ls\r\n",
-                (ULONG64)(ULONG_PTR)ProcessId,
-                (ULONG64)(ULONG_PTR)CreateInfo->ParentProcessId,
-                CreateInfo->ImageFileName->Buffer);
+            * CommandLine è una UNICODE_STRING che contiene la riga
+            * di comando completa, ad esempio:
+            *   powershell.exe -ExecutionPolicy Bypass -c whoami
+            *
+            * Come ImageFileName, può essere NULL — va sempre verificata.
+            * Contiene sia il nome del processo che tutti i parametri
+            * passati al momento della creazione.
+            */
+            if (CreateInfo->CommandLine != NULL)
+            {
+                _snwprintf_s(
+                    logMessage,
+                    MAX_MESSAGE_LEN,
+                    _TRUNCATE,
+                    L"[CREATO]    PID=%llu  PPID=%llu  Path=%ls  CmdLine=%ls\r\n",
+                    (ULONG64)(ULONG_PTR)ProcessId,
+                    (ULONG64)(ULONG_PTR)CreateInfo->ParentProcessId,
+                    CreateInfo->ImageFileName->Buffer,
+                    CreateInfo->CommandLine->Buffer);
+            }
+            else
+            {
+                /*
+                * CommandLine può essere NULL per processi di sistema
+                * o processi creati senza riga di comando esplicita
+                * (es. alcuni processi kernel o driver).
+                */
+                _snwprintf_s(
+                    logMessage,
+                    MAX_MESSAGE_LEN,
+                    _TRUNCATE,
+                    L"[CREATO]    PID=%llu  PPID=%llu  Path=%ls  CmdLine=<non disponibile>\r\n",
+                    (ULONG64)(ULONG_PTR)ProcessId,
+                    (ULONG64)(ULONG_PTR)CreateInfo->ParentProcessId,
+                    CreateInfo->ImageFileName->Buffer);
+            }
         }
         else
         {
