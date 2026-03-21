@@ -2,6 +2,7 @@
 *.log
 
 # Ignora directory
+test/
 logs/
 **/logs/
 .logs/
