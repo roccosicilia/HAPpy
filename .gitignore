@@ -5,6 +5,7 @@
 test/
 logs/
 **/logs/
+**/test/
 .logs/
 **/.logs/
 .vscode/
