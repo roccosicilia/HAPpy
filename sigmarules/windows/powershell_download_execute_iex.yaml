@@ -1,0 +1,64 @@
+title: PowerShell Download and Execute via Invoke-Expression
+id: c4f5b2e3-9a1d-4f8b-bc7e-1d2a3f456789
+status: experimental
+description: >
+  Detects PowerShell executing commands downloaded from a remote HTTP/HTTPS
+  source using Invoke-Expression or encoded commands. Covers common patterns
+  including IEX, Net.WebClient, and Base64 encoded payloads.
+references:
+  - https://attack.mitre.org/techniques/T1059/001/
+  - https://attack.mitre.org/techniques/T1105/
+author: Rocco <sheliak> Sicilia
+date: 2026/03/21
+tags:
+  - attack.execution
+  - attack.t1059.001
+  - attack.command_and_control
+  - attack.t1105
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection_process:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+
+  selection_invoke_expression:
+    CommandLine|contains:
+      - 'Invoke-Expression'
+      - 'IEX'
+
+  selection_download:
+    CommandLine|contains:
+      - 'Invoke-WebRequest'
+      - 'iwr'
+      - 'wget'
+      - 'curl'
+      - 'DownloadString'
+      - 'DownloadFile'
+      - 'Net.WebClient'
+      - 'WebClient'
+
+  selection_http:
+    CommandLine|contains:
+      - 'http://'
+      - 'https://'
+
+  selection_encoded:
+    CommandLine|contains|windash:
+      - '-enc '
+      - '-encodedcommand '
+      - '-ec '
+
+  condition: >
+    selection_process and (
+      (selection_invoke_expression and selection_download and selection_http) or
+      (selection_encoded and selection_http)
+    )
+
+falsepositives:
+  - Administrative scripts that intentionally download and execute code
+  - DevOps automation scripts
+  - Software deployment tools (SCCM, Ansible)
+level: high
