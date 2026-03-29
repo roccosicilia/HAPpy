@@ -8,8 +8,8 @@ description: >
 references:
   - https://attack.mitre.org/techniques/T1059/001/
   - https://attack.mitre.org/techniques/T1105/
-author: Rocco <sheliak> Sicilia
-date: 2026/03/21
+author: your_name
+date: 2026/03/22
 tags:
   - attack.execution
   - attack.t1059.001
@@ -42,8 +42,8 @@ detection:
 
   selection_http:
     CommandLine|contains:
-      - 'http://'
-      - 'https://'
+      - 'http'
+      - 'https'
 
   selection_encoded:
     CommandLine|contains|windash:
