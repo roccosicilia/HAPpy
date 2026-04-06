@@ -48,7 +48,7 @@ int main() {
         (es. ERROR_INVALID_PARAMETER se il PID non esiste,
         ERROR_ACCESS_DENIED se i privilegi sono insufficienti).
     */
-    DWORD spoofedParentPid = 10256; // PID hardcoded del parent fittizio
+    DWORD spoofedParentPid = 12476; // PID hardcoded del parent fittizio
     HANDLE hParent = OpenProcess(PROCESS_CREATE_PROCESS, FALSE, spoofedParentPid);
     if (!hParent) {
         printf("OpenProcess failed: %lu\n", GetLastError());
