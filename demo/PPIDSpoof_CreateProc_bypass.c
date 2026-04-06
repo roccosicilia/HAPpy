@@ -20,7 +20,7 @@
     in Vista per scenari come job object e container. Non richiede
     privilegi elevati: è sufficiente poter aprire il processo
     target con PROCESS_CREATE_PROCESS.
-
+you
     Tool come Process Hacker, Task Manager e la maggior parte
     degli EDR leggono il PPID da EPROCESS — vedranno quindi
     il parent fittizio come genitore legittimo del processo.
@@ -48,7 +48,7 @@ int main() {
         (es. ERROR_INVALID_PARAMETER se il PID non esiste,
         ERROR_ACCESS_DENIED se i privilegi sono insufficienti).
     */
-    DWORD spoofedParentPid = 4812; // PID hardcoded del parent fittizio
+    DWORD spoofedParentPid = 11152; // PID hardcoded del parent fittizio
     HANDLE hParent = OpenProcess(PROCESS_CREATE_PROCESS, FALSE, spoofedParentPid);
     if (!hParent) {
         printf("OpenProcess failed: %lu\n", GetLastError());
@@ -149,7 +149,7 @@ int main() {
     si.StartupInfo.cb  = sizeof(si);
     si.lpAttributeList = attrList;
 
-    wchar_t cmdLine[] = L"powershell.exe -NoProfile -Command Get-Date";
+    wchar_t cmdLine[] = L"powershell.exe -NoProfile -Command sleep 100";
 
     printf("[*] Creazione processo con parent fittizio...\n");
 
